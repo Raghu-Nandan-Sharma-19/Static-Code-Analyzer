@@ -1,39 +1,76 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <sstream>
+#include <regex>
+#include <vector>
+
+struct Issue {
+    int lineNumber;
+    std::string message;
+};
 
 void analyzeCode(const std::string& filename) {
     std::ifstream file(filename);
-    std::string line;
-    int lineNumber = 0;
-
     if (!file.is_open()) {
-        std::cerr << "Error opening file: " << filename << "\n";
+        std::cerr << "❌ Error: Cannot open file: " << filename << "\n";
         return;
     }
 
-    while (getline(file, line)) {
+    std::string line;
+    int lineNumber = 0;
+    std::regex semicolonRegex(".*[^;\\{\\}\\s]$");
+
+    std::vector<Issue> issues;
+
+    std::cout << "\n🔍 Starting static analysis of: " << filename << "\n";
+
+    while (std::getline(file, line)) {
         lineNumber++;
 
-        if (line.length() > 80)
-            std::cout << "Line " << lineNumber << ": Line exceeds 80 characters.\n";
+        if (line.length() > 80) {
+            issues.push_back({lineNumber, "⚠️ Line exceeds 80 characters"});
+        }
 
-        if (line.find("goto") != std::string::npos)
-            std::cout << "Line " << lineNumber << ": Use of 'goto' is discouraged.\n";
+        if (line.find("goto") != std::string::npos) {
+            issues.push_back({lineNumber, "❗ Usage of 'goto' is discouraged"});
+        }
 
-        if (!line.empty() && line.back() != ';' && line.find("{") == std::string::npos &&
-            line.find("}") == std::string::npos && line.find("#") == std::string::npos)
-            std::cout << "Line " << lineNumber << ": Missing semicolon.\n";
+        if (!line.empty() &&
+            std::regex_match(line, semicolonRegex) &&
+            line.find("#") != 0 &&
+            line.find("for") == std::string::npos &&
+            line.find("if") == std::string::npos &&
+            line.find("while") == std::string::npos &&
+            line.find("else") == std::string::npos &&
+            line.find("switch") == std::string::npos) {
+            issues.push_back({lineNumber, "⚠️ Might be missing a semicolon"});
+        }
     }
 
     file.close();
+
+    std::cout << "\n📋 Analysis Report\n";
+    std::cout << "----------------------\n";
+
+    if (issues.empty()) {
+        std::cout << "✅ No issues found. Code looks clean!\n";
+    } else {
+        for (const auto& issue : issues) {
+            std::cout << "Line " << issue.lineNumber << ": " << issue.message << "\n";
+        }
+
+        std::cout << "\nSummary: " << issues.size() << " issue(s) found.\n";
+    }
+
+    std::cout << "----------------------\n";
+    std::cout << "✅ Static analysis complete.\n";
 }
 
 int main() {
-    std::string filename;
-    std::cout << "Enter the path to the C++ file to analyze: ";
-    std::cin >> filename;
+    std::string  filename;
+    std::cout << "Enter path to the C++ file to analyze: ";
+    std::getline(std::cin, filename);
+
     analyzeCode(filename);
     return 0;
 }
